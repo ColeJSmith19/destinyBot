@@ -20,8 +20,14 @@ import (
 //509279158732455936 = Destiny Chit Chat
 var channelsToIgnore = []string{"512548489155182592", "509279158732455936"}
 
-//destiny2AppID The application ID of the game Destiny 2
+//destiny2AppID application ID of the game Destiny 2
 var destiny2AppID = "372438022647578634"
+
+//botTestingChannelID ID of the bot-testing channel in discord
+const botTestingChannelID = "739454920473968660"
+
+//kingsGambitGuildID ID of our Clan, King's Gambit
+const kingsGambitGuildID = "377181933614006282"
 
 // Variables used for command line parameters
 var (
@@ -78,7 +84,10 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if text[0] != "!TR3VR" {
 		return
 	}
-	// s.ChannelMessageSend(m.ChannelID, "Hello Guardian :voidtitan1:")
+	if m.ChannelID != "739454920473968660" {
+		return
+	}
+
 	g, _ := s.Guild(m.GuildID)
 
 	var gameUsers []models.GameUser
@@ -89,23 +98,23 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		//prints out each instance of a player in a channel.
 		fmt.Println(vs)
 
-	}
-
-	for _, p := range g.Presences {
-		var pre discordgo.Presence = *p
-
-		if pre.Game != nil && pre.Game.Name != "" {
-			user, _ := s.User(pre.User.ID)
-			var gameUser models.GameUser
-			gameUser.Game = pre.Game.Name
-			gameUser.UserName = user.String()
-			gameUser.UserID = user.ID
-			gameUser.IsPlayingDestiny2 = pre.Game.ApplicationID == destiny2AppID
-
-			gameUsers = append(gameUsers, gameUser)
+		if vs.GuildID != kingsGambitGuildID {
+			continue
 		}
+
+		gameUser := getPresenceForUser(*g, *s, vs.UserID)
+
+		if gameUser.IsEmpty() {
+			continue
+		}
+
+		gameUser.ChannelID = vs.ChannelID
+		gameUsers = append(gameUsers, gameUser)
 	}
+
 	b, e := json.Marshal(gameUsers)
+	// mes, e := s.ChannelMessageSend(botTestingChannelID, string(b))
+
 	if e != nil {
 		fmt.Println(e.Error())
 	}
@@ -119,4 +128,27 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if e != nil {
 		fmt.Println(e)
 	}
+
+}
+
+//this can be used to update a user's roles when I am ready to integrate that
+//session.GuildMemberEdit()
+
+func getPresenceForUser(g discordgo.Guild, s discordgo.Session, uid string) models.GameUser {
+	var gameUser models.GameUser
+
+	for _, p := range g.Presences {
+		var pre discordgo.Presence = *p
+
+		if pre.Game != nil && pre.Game.Name != "" && pre.User.ID == uid {
+			user, _ := s.User(pre.User.ID)
+			gameUser.Game = pre.Game.Name
+			gameUser.UserName = user.String()
+			gameUser.UserID = user.ID
+			gameUser.IsPlayingDestiny2 = pre.Game.ApplicationID == destiny2AppID
+			break
+		}
+	}
+	return gameUser
+
 }
