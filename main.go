@@ -10,8 +10,18 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/ColeJSmith19/destinyBot/models"
+
 	"github.com/bwmarrin/discordgo"
 )
+
+//channelsToIgnore contains a list of channel IDs that should NOT be evaluated against
+//512548489155182592 = AFK
+//509279158732455936 = Destiny Chit Chat
+var channelsToIgnore = []string{"512548489155182592", "509279158732455936"}
+
+//destiny2AppID The application ID of the game Destiny 2
+var destiny2AppID = "372438022647578634"
 
 // Variables used for command line parameters
 var (
@@ -71,18 +81,26 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// s.ChannelMessageSend(m.ChannelID, "Hello Guardian :voidtitan1:")
 	g, _ := s.Guild(m.GuildID)
 
-	var gameUsers []GameUser
+	var gameUsers []models.GameUser
+
+	for _, voiceStates := range g.VoiceStates {
+		var vs discordgo.VoiceState = *voiceStates
+
+		//prints out each instance of a player in a channel.
+		fmt.Println(vs)
+
+	}
 
 	for _, p := range g.Presences {
 		var pre discordgo.Presence = *p
 
 		if pre.Game != nil && pre.Game.Name != "" {
 			user, _ := s.User(pre.User.ID)
-
-			var gameUser GameUser
+			var gameUser models.GameUser
 			gameUser.Game = pre.Game.Name
 			gameUser.UserName = user.String()
 			gameUser.UserID = user.ID
+			gameUser.IsPlayingDestiny2 = pre.Game.ApplicationID == destiny2AppID
 
 			gameUsers = append(gameUsers, gameUser)
 		}
@@ -102,14 +120,3 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		fmt.Println(e)
 	}
 }
-
-//GameUser holds a game name, a username and a user id
-type GameUser struct {
-	Game     string `json:"game"`
-	UserName string `json:"username"`
-	UserID   string `json:"userid"`
-}
-
-// func getUserByID(s *discordgo.Session, m *discordgo.MessageCreate, uid string) discordgo.User {
-
-// }
