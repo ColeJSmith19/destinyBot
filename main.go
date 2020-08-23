@@ -29,6 +29,9 @@ const botTestingChannelID = "739454920473968660"
 //kingsGambitGuildID ID of our Clan, King's Gambit
 const kingsGambitGuildID = "377181933614006282"
 
+//kingsGambitClanMemberID ID of the Role given to players in the clan
+const kingsGambitClanMemberRoleID = "409209843501629450"
+
 // Variables used for command line parameters
 var (
 	Token string
@@ -90,15 +93,30 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	g, _ := s.Guild(m.GuildID)
 
+	fmt.Println(getRolesForGuild(*g, *s, m.GuildID))
+
+	// fmt.Println(s.GuildMemberRoleAdd(m.GuildID, "178671436435554305", "739222006880534639"))
+
 	var gameUsers []models.GameUser
 
 	for _, voiceStates := range g.VoiceStates {
 		var vs discordgo.VoiceState = *voiceStates
 
 		//prints out each instance of a player in a channel.
-		fmt.Println(vs)
+		fmt.Println(vs) //REMOVE
 
+		//skip any users in channelsToIgnore const
+		if stringInList(channelsToIgnore, vs.ChannelID) {
+			continue
+		}
+
+		//skip any users NOT in the guild King's Gambit
 		if vs.GuildID != kingsGambitGuildID {
+			continue
+		}
+
+		//skip any users WITHOUT the role King's Gambit Clan Member
+		if !userIsInClan(*s, m.GuildID, vs.UserID) {
 			continue
 		}
 
@@ -129,10 +147,16 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		fmt.Println(e)
 	}
 
-}
+	if len(gameUsers) < 2 {
+		return
+	}
 
-//this can be used to update a user's roles when I am ready to integrate that
-//session.GuildMemberEdit()
+	//loop over all gameUser instances and check to see if users are in the same Channel based on channelID
+	//if so, check to see if they are playing Destiny 2
+	//if so, check to see if other players in the same channel are playing destiny 2
+	//if so, check to see which users are "unseen" for the month and upgrade their role to "seen"
+
+}
 
 func getPresenceForUser(g discordgo.Guild, s discordgo.Session, uid string) models.GameUser {
 	var gameUser models.GameUser
@@ -151,4 +175,33 @@ func getPresenceForUser(g discordgo.Guild, s discordgo.Session, uid string) mode
 	}
 	return gameUser
 
+}
+
+func stringInList(list []string, candidate string) bool {
+	for _, s := range list {
+		if s == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func getRolesForGuild(g discordgo.Guild, s discordgo.Session, gid string) []discordgo.Role {
+	var rolesToReturn []discordgo.Role
+
+	roles, _ := s.GuildRoles(gid)
+
+	for _, role := range roles {
+		var r discordgo.Role = *role
+		rolesToReturn = append(rolesToReturn, r)
+	}
+
+	return rolesToReturn
+}
+
+func userIsInClan(s discordgo.Session, gid, uid string) bool {
+	mem, _ := s.GuildMember(gid, uid)
+	var member discordgo.Member = *mem
+
+	return stringInList(member.Roles, kingsGambitClanMemberRoleID)
 }
