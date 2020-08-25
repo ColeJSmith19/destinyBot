@@ -104,6 +104,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	for _, voiceStates := range g.VoiceStates {
 		var vs discordgo.VoiceState = *voiceStates
 
+		// fmt.Printf("voiceStates\n%+v\n\n", vs)
+
 		//skip any users in channelsToIgnore const
 		if stringInList(channelsToIgnore, vs.ChannelID) {
 			continue
@@ -144,6 +146,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// 	fmt.Println(e)
 	// }
 
+	// fmt.Printf("gameUsers\n%+v\n\n", gameUsers)
+
 	if len(gameUsers) < 2 {
 		return
 	}
@@ -153,6 +157,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	for _, gu := range gameUsers {
 		channelUsers[gu.ChannelID] = append(channelUsers[gu.ChannelID], gu)
 	}
+
+	// fmt.Printf("channelUsers\n%+v\n\n", channelUsers)
 
 	for _, users := range channelUsers {
 		if len(users) < 2 {
@@ -183,7 +189,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			}
 		}
 
-		s.ChannelMessageSend(botTestingChannelID, fmt.Sprintf("%s have been marked as seen for the month!", strings.Trim(usersToNoteAsSeen, ", ")))
+		if usersToNoteAsSeen != "" {
+			s.ChannelMessageSend(botTestingChannelID, fmt.Sprintf("%s have been marked as seen for the month!", strings.Trim(usersToNoteAsSeen, ", ")))
+		}
 	}
 
 }
