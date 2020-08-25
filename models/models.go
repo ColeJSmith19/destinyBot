@@ -6,6 +6,8 @@ type GameUser struct {
 	UserName          string `json:"username"`
 	UserID            string `json:"userid"`
 	IsPlayingDestiny2 bool   `json:"isplayingdestiny2"`
+	IsInClan          bool   `json:"isinclan"`
+	MonthlySeen       bool   `json:"monthlyseen"`
 	ChannelID         string `json:"channel_id"`
 	Deaf              bool   `json:"deaf"`
 }

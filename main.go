@@ -1,10 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"strings"
@@ -31,6 +29,12 @@ const kingsGambitGuildID = "377181933614006282"
 
 //kingsGambitClanMemberID ID of the Role given to players in the clan
 const kingsGambitClanMemberRoleID = "409209843501629450"
+
+//monthlySeenRoleID ID of the MonthlySeen Role
+const monthlySeenRoleID = "747599821581320262"
+
+//monthlyUneenRoleID ID of the MonthlyUnseen Role
+const monthlyUnseenRoleID = "747599618954756217"
 
 // Variables used for command line parameters
 var (
@@ -93,17 +97,12 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 	g, _ := s.Guild(m.GuildID)
 
-	fmt.Println(getRolesForGuild(*g, *s, m.GuildID))
-
-	// fmt.Println(s.GuildMemberRoleAdd(m.GuildID, "178671436435554305", "739222006880534639"))
+	// fmt.Println(getRolesForGuild(*g, *s, m.GuildID))
 
 	var gameUsers []models.GameUser
 
 	for _, voiceStates := range g.VoiceStates {
 		var vs discordgo.VoiceState = *voiceStates
-
-		//prints out each instance of a player in a channel.
-		fmt.Println(vs) //REMOVE
 
 		//skip any users in channelsToIgnore const
 		if stringInList(channelsToIgnore, vs.ChannelID) {
@@ -130,31 +129,62 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		gameUsers = append(gameUsers, gameUser)
 	}
 
-	b, e := json.Marshal(gameUsers)
-	// mes, e := s.ChannelMessageSend(botTestingChannelID, string(b))
+	// b, e := json.Marshal(gameUsers)
+	// if e != nil {
+	// 	fmt.Println(e.Error())
+	// }
+	// f, e := os.Open("test.json")
+	// if e != nil {
+	// 	fmt.Println(e)
+	// }
+	// defer f.Close()
 
-	if e != nil {
-		fmt.Println(e.Error())
-	}
-	f, e := os.Open("test.json")
-	if e != nil {
-		fmt.Println(e)
-	}
-	defer f.Close()
-
-	e = ioutil.WriteFile("test.json", b, 0644)
-	if e != nil {
-		fmt.Println(e)
-	}
+	// e = ioutil.WriteFile("test.json", b, 0644)
+	// if e != nil {
+	// 	fmt.Println(e)
+	// }
 
 	if len(gameUsers) < 2 {
 		return
 	}
 
-	//loop over all gameUser instances and check to see if users are in the same Channel based on channelID
-	//if so, check to see if they are playing Destiny 2
-	//if so, check to see if other players in the same channel are playing destiny 2
-	//if so, check to see which users are "unseen" for the month and upgrade their role to "seen"
+	var channelUsers = make(map[string][]models.GameUser)
+
+	for _, gu := range gameUsers {
+		channelUsers[gu.ChannelID] = append(channelUsers[gu.ChannelID], gu)
+	}
+
+	for _, users := range channelUsers {
+		if len(users) < 2 {
+			continue
+		}
+
+		var usersPlayingDestiny bool
+		var clanCount int
+		for _, user := range users {
+			if user.IsPlayingDestiny2 {
+				usersPlayingDestiny = true
+			}
+			if user.IsInClan {
+				clanCount++
+			}
+
+		}
+		var usersToNoteAsSeen string
+		//if the users in the channel are playing destiny 2 and the number of user in the channel is
+		//greater than or equal to the number of users that are in the clan (at least two at this step)
+		if usersPlayingDestiny && clanCount <= len(users) {
+			for _, user := range users {
+				if user.IsInClan && !user.MonthlySeen {
+					s.GuildMemberRoleRemove(m.GuildID, user.UserID, monthlyUnseenRoleID)
+					s.GuildMemberRoleAdd(m.GuildID, user.UserID, monthlySeenRoleID)
+					usersToNoteAsSeen += user.UserName + ", "
+				}
+			}
+		}
+
+		s.ChannelMessageSend(botTestingChannelID, fmt.Sprintf("%s have been marked as seen for the month!", strings.Trim(usersToNoteAsSeen, ", ")))
+	}
 
 }
 
@@ -170,6 +200,8 @@ func getPresenceForUser(g discordgo.Guild, s discordgo.Session, uid string) mode
 			gameUser.UserName = user.String()
 			gameUser.UserID = user.ID
 			gameUser.IsPlayingDestiny2 = pre.Game.ApplicationID == destiny2AppID
+			gameUser.IsInClan = userIsInClan(s, g.ID, user.ID)
+			gameUser.MonthlySeen = userHasBeenSeen(s, g.ID, user.ID)
 			break
 		}
 	}
@@ -204,4 +236,11 @@ func userIsInClan(s discordgo.Session, gid, uid string) bool {
 	var member discordgo.Member = *mem
 
 	return stringInList(member.Roles, kingsGambitClanMemberRoleID)
+}
+
+func userHasBeenSeen(s discordgo.Session, gid, uid string) bool {
+	mem, _ := s.GuildMember(gid, uid)
+	var member discordgo.Member = *mem
+
+	return stringInList(member.Roles, monthlySeenRoleID)
 }
