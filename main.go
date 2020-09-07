@@ -31,7 +31,10 @@ const kingsGambitGuildID = "377181933614006282"
 const kingsGambitClanMemberRoleID = "409209843501629450"
 
 //monthlySeenRoleID ID of the MonthlySeen Role
-const monthlySeenRoleID = "747599821581320262"
+// const monthlySeenRoleID = "747599821581320262"
+
+//This is the September Seen ID
+const monthlySeenRoleID = "750524908655607808"
 
 //monthlyUneenRoleID ID of the MonthlyUnseen Role
 const monthlyUnseenRoleID = "747599618954756217"
@@ -57,7 +60,8 @@ func main() {
 	}
 
 	// Register the messageCreate func as a callback for MessageCreate events.
-	dg.AddHandler(messageCreate)
+	// dg.AddHandler(messageCreate)
+	dg.AddHandler(voiceStateUpdate)
 
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
@@ -78,26 +82,28 @@ func main() {
 
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the autenticated bot has access to.
-func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+// func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
-	// Ignore all messages created by the bot itself
-	// This isn't required in this specific example but it's a good practice.
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
+// 	// Ignore all messages created by the bot itself
+// 	// This isn't required in this specific example but it's a good practice.
+// 	if m.Author.ID == s.State.User.ID {
+// 		return
+// 	}
 
-	text := strings.Split(m.Content, " ")
+// 	text := strings.Split(m.Content, " ")
 
-	if text[0] != "!TR3VR" {
-		return
-	}
-	if m.ChannelID != "739454920473968660" {
-		return
-	}
+// 	if text[0] != "!TR3VR" {
+// 		return
+// 	}
+// 	if m.ChannelID != "739454920473968660" {
+// 		return
+// 	}
 
-	g, _ := s.Guild(m.GuildID)
+func voiceStateUpdate(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
 
-	// fmt.Println(getRolesForGuild(*g, *s, m.GuildID))
+	g, _ := s.Guild(v.GuildID)
+
+	// fmt.Println(getRolesForGuild(*g, *s, v.GuildID))
 
 	var gameUsers []models.GameUser
 
@@ -117,7 +123,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 
 		//skip any users WITHOUT the role King's Gambit Clan Member
-		if !userIsInClan(*s, m.GuildID, vs.UserID) {
+		if !userIsInClan(*s, v.GuildID, vs.UserID) {
 			continue
 		}
 
@@ -177,20 +183,26 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 		}
 		var usersToNoteAsSeen string
+		var usersToMarkAsSeenCount int
 		//if the users in the channel are playing destiny 2 and the number of user in the channel is
 		//greater than or equal to the number of users that are in the clan (at least two at this step)
 		if usersPlayingDestiny && clanCount <= len(users) {
 			for _, user := range users {
 				if user.IsInClan && !user.MonthlySeen {
-					s.GuildMemberRoleRemove(m.GuildID, user.UserID, monthlyUnseenRoleID)
-					s.GuildMemberRoleAdd(m.GuildID, user.UserID, monthlySeenRoleID)
+					s.GuildMemberRoleRemove(v.GuildID, user.UserID, monthlyUnseenRoleID)
+					s.GuildMemberRoleAdd(v.GuildID, user.UserID, monthlySeenRoleID)
 					usersToNoteAsSeen += user.UserName + ", "
+					usersToMarkAsSeenCount++
 				}
 			}
 		}
 
 		if usersToNoteAsSeen != "" {
-			s.ChannelMessageSend(botTestingChannelID, fmt.Sprintf("%s have been marked as seen for the month!", strings.Trim(usersToNoteAsSeen, ", ")))
+			if usersToMarkAsSeenCount == 1 {
+				s.ChannelMessageSend(botTestingChannelID, fmt.Sprintf("%s has been marked as seen for the month!", strings.Trim(usersToNoteAsSeen, ", ")))
+			} else {
+				s.ChannelMessageSend(botTestingChannelID, fmt.Sprintf("%s have been marked as seen for the month!", strings.Trim(usersToNoteAsSeen, ", ")))
+			}
 		}
 	}
 
