@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/ColeJSmith19/destinyBot/models"
 
@@ -60,7 +61,7 @@ func main() {
 	}
 
 	// Register the messageCreate func as a callback for MessageCreate events.
-	// dg.AddHandler(messageCreate)
+	dg.AddHandler(messageCreate)
 	dg.AddHandler(voiceStateUpdate)
 
 	// Open a websocket connection to Discord and begin listening.
@@ -83,23 +84,38 @@ func main() {
 // This function will be called (due to AddHandler above) every time a new
 // message is created on any channel that the autenticated bot has access to.
 // func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	// Ignore all messages created by the bot itself
+	// This isn't required in this specific example but it's a good practice.
+	if m.Author.ID == s.State.User.ID {
+		return
+	}
 
-// 	// Ignore all messages created by the bot itself
-// 	// This isn't required in this specific example but it's a good practice.
-// 	if m.Author.ID == s.State.User.ID {
-// 		return
-// 	}
+	text := strings.Split(m.Content, " ")
 
-// 	text := strings.Split(m.Content, " ")
-
-// 	if text[0] != "!TR3VR" {
-// 		return
-// 	}
-// 	if m.ChannelID != "739454920473968660" {
-// 		return
-// 	}
+	if text[0] != "!TR3VR" {
+		return
+	}
+	if m.ChannelID != "739454920473968660" {
+		return
+	}
+	if len(text) == 1 {
+		s.ChannelMessageSend(m.ChannelID, "Try '!TR3VR help'")
+	} else if len(text) == 2 && text[1] == "help" {
+		s.ChannelMessageSend(m.ChannelID, "Here is a list of commands\nhelp\nunseen'")
+	} else if len(text) == 2 && text[1] == "unseen" {
+		unseenUsers := getMonthlyUnseenUsers(s, m.GuildID)
+		if unseenUsers == "" {
+			s.ChannelMessageSend(m.ChannelID, "All members have been seen!")
+		} else {
+			s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("The following members have not been seen yet this month.\n%+v", unseenUsers))
+		}
+	}
+}
 
 func voiceStateUpdate(s *discordgo.Session, v *discordgo.VoiceStateUpdate) {
+
+	time.Sleep(time.Minute * 5)
 
 	g, _ := s.Guild(v.GuildID)
 
@@ -263,4 +279,19 @@ func userHasBeenSeen(s discordgo.Session, gid, uid string) bool {
 	var member discordgo.Member = *mem
 
 	return stringInList(member.Roles, monthlySeenRoleID)
+}
+
+func getMonthlyUnseenUsers(s *discordgo.Session, gid string) string {
+	unseenMembers := ""
+	members, e := s.GuildMembers(gid, "", 1000)
+	if e != nil {
+		fmt.Println(e)
+		return ""
+	}
+	for _, member := range members {
+		if stringInList(member.Roles, kingsGambitClanMemberRoleID) && !stringInList(member.Roles, monthlySeenRoleID) {
+			unseenMembers += member.User.Username + ", "
+		}
+	}
+	return strings.Trim(unseenMembers, ", ")
 }
