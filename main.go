@@ -34,8 +34,8 @@ const kingsGambitClanMemberRoleID = "409209843501629450"
 //monthlySeenRoleID ID of the MonthlySeen Role
 // const monthlySeenRoleID = "747599821581320262"
 
-//This is the September Seen ID
-const monthlySeenRoleID = "750524908655607808"
+//This is the October Seen ID
+const monthlySeenRoleID = "761288604357230613"
 
 //monthlyUneenRoleID ID of the MonthlyUnseen Role
 const monthlyUnseenRoleID = "747599618954756217"
@@ -102,7 +102,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if len(text) == 1 {
 		s.ChannelMessageSend(m.ChannelID, "Try '!TR3VR help'")
 	} else if len(text) == 2 && text[1] == "help" {
-		s.ChannelMessageSend(m.ChannelID, "Here is a list of commands\nhelp\nunseen'")
+		s.ChannelMessageSend(m.ChannelID, "Here is a list of commands\nhelp\nunseen")
 	} else if len(text) == 2 && text[1] == "unseen" {
 		unseenUsers := getMonthlyUnseenUsers(s, m.GuildID)
 		if unseenUsers == "" {
