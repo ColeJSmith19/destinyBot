@@ -230,12 +230,14 @@ func getPresenceForUser(g discordgo.Guild, s discordgo.Session, uid string) mode
 	for _, p := range g.Presences {
 		var pre discordgo.Presence = *p
 
-		if pre.Game != nil && pre.Game.Name != "" && pre.User.ID == uid {
+		if pre.User.ID == uid {
 			user, _ := s.User(pre.User.ID)
-			gameUser.Game = pre.Game.Name
+			if pre.Game != nil {
+				gameUser.Game = pre.Game.Name
+				gameUser.IsPlayingDestiny2 = pre.Game.ApplicationID == destiny2AppID
+			}
 			gameUser.UserName = user.String()
 			gameUser.UserID = user.ID
-			gameUser.IsPlayingDestiny2 = pre.Game.ApplicationID == destiny2AppID
 			gameUser.IsInClan = userIsInClan(s, g.ID, user.ID)
 			gameUser.MonthlySeen = userHasBeenSeen(s, g.ID, user.ID)
 			break
